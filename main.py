@@ -1,4 +1,5 @@
 #Snake Game
+from asyncio.constants import SENDFILE_FALLBACK_READBUFFER_SIZE
 import math
 from os import supports_fd
 import random
@@ -9,6 +10,7 @@ from tkinter import messagebox
 BLACK = (0,0,0)
 WHITE = (255,255,255)
 RED = (255,0,0)
+GREEN = (0,255,0)
 
 class cube(object):
     rows = 20
@@ -94,10 +96,29 @@ class snake(object):
                 else: c.move(c.dirnx,c.dirny)  # if the edge is not reached
 
     def reset(self, pos):
-        pass
+        self.head = cube(pos)
+        self.body = []
+        self.body.append(self.head)
+        self.turns = {}
+        self.dirnx = 0
+        self.dirny = 1
 
     def addCube(self):
-        pass
+        tail = self.body[-1]
+        dx, dy = tail.dirnx, tail.dirny
+
+        if dx == 1 and dy == 0:
+            self.body.append(cube((tail.pos[0]-1,tail.pos[1])))
+        elif dx == -1 and dy == 0:
+            self.body.append(cube((tail.pos[0]+1,tail.pos[1])))
+        elif dx == 0 and dy == 1:
+            self.body.append(cube((tail.pos[0],tail.pos[1]-1)))
+        elif dx == 0 and dy == -1:
+            self.body.append(cube((tail.pos[0],tail.pos[1]+1)))
+        
+        # We then set the cubes direction to the direction of the snake.
+        self.body[-1].dirnx = dx
+        self.body[-1].dirny = dy
 
     def draw(self, surface):
         for i, c in enumerate(self.body):
@@ -119,23 +140,45 @@ def drawGrid(w, rows, surface):
         pygame.draw.line(surface, WHITE, (0,y), (w,y))  #vertical line (y stays the same) 0 to w
 
 def redrawWindow(surface):
-    global rows, width, s
+    global rows, width, s, SENDFILE_FALLBACK_READBUFFER_SIZE
     surface.fill(BLACK)
     s.draw(surface)     #draws the snake in the surface
+    snack.draw(surface)
     drawGrid(width, rows, surface)
     pygame.display.update() #updates the display
 
 def randomSnack(rows, items):
-    pass
+    positions = items.body
+    
+    while True:
+        x = random.randrange(rows)
+        y = random.randrange(rows)
+        if len(list(filter(lambda z:z.pos == (x,y), positions))) > 0:
+            continue
+        else:
+            break
+    
+    return (x,y)
+
+def message_box(subject, content):
+    root = tk.Tk()
+    root.attributes("-topmost", True)
+    root.withdraw()
+    messagebox.showinfo(subject, content)
+    
+    try:
+        root.destroy
+    except:
+        pass
 
 def main():
-    global rows, width, s
+    global rows, width, s, snack
     width = 500
-    height = 500
     rows = 20
     FPS = 10
-    win = pygame.display.set_mode((width, height))
+    win = pygame.display.set_mode((width, width))
     s = snake(RED, (10,10))
+    snack = cube(randomSnack(rows, s), color = (GREEN))
 
     clock = pygame.time.Clock()
     flag = True
@@ -143,6 +186,19 @@ def main():
         pygame.time.delay(50) #lower = faster
         clock.tick(FPS)  #for the program to run 10 FPS; lower = slower
         s.move()
+
+        if s.body[0]. pos == snack.pos:
+            s.addCube()
+            snack = cube(randomSnack(rows, s), color = (GREEN))
+
+        #Checking for the collision
+        for x in range(len(s.body)):
+            if s.body[x].pos in list(map(lambda z:z.pos,s.body[x+1:])):
+                print('Score: ', len(s.body))
+                message_box('You Lost!', 'Try again...')
+                s.reset((10,10))
+                break
+
         redrawWindow(win)      #refreshes the screen
     pass
 
